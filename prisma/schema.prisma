@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pets     Pet[]
+  orders   Order[]
+  designs  Design[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Pet {
+  id                    String      @id @default(cuid())
+  userId                String
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  species               PetSpecies
+  breed                 String?
+  age                   Int?
+  weight                Float?
+  originalImageUrl      String
+  generatedModelUrl     String?
+  modelGenerationStatus ModelStatus @default(PENDING)
+  modelGenerationError  String?
+  modelProvider         String?
+  designs               Design[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@map("pets")
+}
+
+enum PetSpecies {
+  CAT
+  DOG
+}
+
+enum ModelStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Product {
+  id          String          @id @default(cuid())
+  sku         String          @unique
+  name        String
+  description String
+  price       Float
+  currency    String          @default("CNY")
+  categoryId  String
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+  imageUrl    String
+  model3dUrl  String?
+  aiTags      String?
+  aiScore     Float?
+  aiPrompt    String?
+  inventory   Int             @default(0)
+  isActive    Boolean         @default(false)
+  sortOrder   Int             @default(0)
+  sizeOptions String?
+  fabricType  String?
+  petType     PetSpecies?
+  orderItems  OrderItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductCategory {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  slug        String            @unique
+  description String?
+  parentId    String?
+  parent      ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ProductCategory[] @relation("CategoryHierarchy")
+  products    Product[]
+  createdAt   DateTime          @default(now())
+
+  @@map("product_categories")
+}
+
+model Order {
+  id                   String        @id @default(cuid())
+  orderNumber          String        @unique
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id])
+  status               OrderStatus   @default(PENDING)
+  totalAmount          Float
+  currency             String        @default("CNY")
+  paymentMethod        PaymentMethod?
+  paymentStatus        PaymentStatus @default(UNPAID)
+  paymentTransactionId String?
+  paidAt               DateTime?
+  shippingName         String
+  shippingPhone        String
+  shippingAddress      String
+  designId             String?       @unique
+  design               Design?       @relation(fields: [designId], references: [id])
+  items                OrderItem[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  ALIPAY
+  WECHAT_PAY
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Float
+
+  @@unique([orderId, productId])
+  @@map("order_items")
+}
+
+model Design {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  petId        String
+  pet          Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  name         String?
+  thumbnailUrl String?
+  composition  String
+  aiPrompt     String?
+  aiAssisted   Boolean  @default(false)
+  order        Order?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@map("designs")
+}
+
+model AiCache {
+  id          String   @id @default(cuid())
+  cacheKey    String   @unique
+  provider    String
+  serviceType String
+  input       String
+  output      String
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([serviceType])
+  @@index([expiresAt])
+  @@map("ai_cache")
+}
